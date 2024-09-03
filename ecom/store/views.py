@@ -1,8 +1,72 @@
 from django.shortcuts import render, redirect
-from .models import Product, Category
+from .models import Product, Category, Profile
 from django.contrib.auth import authenticate,login,logout
 from django.contrib import messages
-from .forms import SignUpForm
+from .forms import SignUpForm, UpdateUserForm, ChangePasswordForm, UserInfoForm
+from django.contrib.auth.models import User
+
+def update_info(request):
+    if request.user.is_authenticated:
+        current_user = Profile.objects.get(user__id=request.user.id)
+        form = UserInfoForm(request.POST or None, instance=current_user)
+        
+        if form.is_valid():
+            form.save()
+            
+            messages.success(request, ("User info updated"))
+            return redirect('home')
+        
+        return render(request, "update_info.html", {"form": form})
+    else:
+        messages.success(request, 'Log in in order to access this page.')
+        return redirect('home')
+    
+
+
+def update_password(request):
+    if request.user.is_authenticated:
+        current_user = request.user
+        
+        if request.method == 'POST':
+            form = ChangePasswordForm(current_user, request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request,'Password changed succesfully')
+                login(request, current_user)
+                return redirect('update_user')
+            else:
+                for error in list(form.errors.values()):
+                    messages.error(request,error)
+                return redirect('update_password')
+        else:
+            form = ChangePasswordForm(current_user)
+            return render(request,'update_password.html',{'form':form})
+    else:
+        messages.success(request, 'You must be logged in to update password')
+        return redirect('home')
+
+def update_user(request):
+    if request.user.is_authenticated:
+        current_user = User.objects.get(id=request.user.id)
+        user_form = UpdateUserForm(request.POST or None, instance=current_user)
+        
+        if user_form.is_valid():
+            user_form.save()
+            
+            login(request, current_user)
+            messages.success(request, ("User profile updated"))
+            return redirect('home')
+        
+        return render(request, "update_user.html", {"user_form": user_form})
+    else:
+        messages.success(request, 'Log in in order to access this page.')
+        return redirect('home')
+    
+    return render(request, 'update_user.html', {})
+
+def category_summary(request):
+    categories = Category.objects.all()
+    return render(request, 'category_summary.html', {'categories':categories})
 
 def category(request, var):
     var = var.replace('-',' ')
